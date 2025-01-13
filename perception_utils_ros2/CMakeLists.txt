@@ -98,12 +98,6 @@ install(
   RUNTIME DESTINATION lib
 )
 
-# Install include directories
-install(
-  DIRECTORY include/
-  DESTINATION include/${PROJECT_NAME}
-)
-
 # Install launch files
 install(
   DIRECTORY launch/
