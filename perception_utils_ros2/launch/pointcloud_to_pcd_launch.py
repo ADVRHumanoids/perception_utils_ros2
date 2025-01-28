@@ -10,12 +10,6 @@ def generate_launch_description():
     package_share_dir = get_package_share_directory("concert_mapping")
     # Full path to the PCD file
     pcd_file_path = os.path.join(package_share_dir,
-                                os.pardir,
-                                os.pardir,
-                                os.pardir,
-                                os.pardir,
-                                "src",
-                                "concert_mapping",
                                 "pointclouds",
                                 "pointclouds_")
 
@@ -25,7 +19,7 @@ def generate_launch_description():
             default_value=pcd_file_path  # Use the constructed path
         ),
         Node(
-            package='pcl_ros',  # Replace with the actual package name containing pointcloud_to_pcd
+            package='perception_utils_ros2',  # Replace with the actual package name containing pointcloud_to_pcd
             executable='combined_pointcloud_to_pcd_node',  # Name of the executable
             name='pointcloud_to_pcd',
             parameters=[{
