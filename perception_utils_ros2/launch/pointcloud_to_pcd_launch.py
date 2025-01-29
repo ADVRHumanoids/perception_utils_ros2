@@ -27,6 +27,8 @@ def generate_launch_description():
                 'binary': False,           # Save the PCD file in ASCII format
                 'compressed': False,       # Disable compression
                 'rgb': False,              # Set RGB support to false if the point cloud doesn't contain color
+                'save_timer_sec': 0.0,
+                'save_on_shutdown': True
             }],
             remappings=[
                 ('input', '/cloud_map')       # Remap the input point cloud topic to '/cloud_in'
