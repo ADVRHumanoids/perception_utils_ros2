@@ -1,3 +1,13 @@
+"""!
+@file master_lidar_conversion_fuse.launch.py
+@author Valerio Passamano
+@brief Orchestrates point-cloud-to-laserscan conversion followed by scan fusion.
+
+This launch file includes `pointcloud_to_laserscan.launch.py` to generate scan
+topics from point clouds and then includes `laserscan_multi_merger.launch.py`
+to fuse those scan topics into a single merged scan output.
+"""
+
 import os
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription

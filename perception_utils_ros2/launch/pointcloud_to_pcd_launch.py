@@ -1,3 +1,13 @@
+"""!
+@file pointcloud_to_pcd_launch.py
+@author Valerio Passamano
+@brief Launches the point cloud accumulation node that exports a merged PCD file.
+
+This launch file starts `combined_pointcloud_to_pcd_node`, provides its PCD
+output prefix and save options, and remaps the node's `input` subscription to
+the `/cloud_map` topic so an accumulated cloud can be written on shutdown.
+"""
+
 import os
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration

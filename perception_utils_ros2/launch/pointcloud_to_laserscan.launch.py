@@ -1,3 +1,14 @@
+"""!
+@file pointcloud_to_laserscan.launch.py
+@author Valerio Passamano
+@brief Launches two pointcloud-to-laserscan converters for front and back lidars.
+
+This launch file starts one `pointcloud_to_laserscan_node` per scanner
+namespace, remaps each node to that scanner's `points` and `scan` topics, and
+applies a 360-degree conversion configuration tuned for the front and back
+VLP16 sensors.
+"""
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration

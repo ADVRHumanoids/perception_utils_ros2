@@ -33,13 +33,18 @@
  */
 
 /**
- * \author Radu Bogdan Rusu
- * \author Extended by Valerio Passamano
+ * @file combined_pointcloud_to_pcd.cpp
+ * @author Extended by Valerio Passamano
+ * @brief ROS 2 component that accumulates point clouds and saves them as one PCD file.
  *
- * @b combined_pointcloud_to_pcd is a node that accumulates multiple incoming
- * point cloud messages into a single PCD file, optionally transforming them
- * into a fixed frame.
+ * The node subscribes to a single `PointCloud2` input stream, optionally transforms
+ * each received cloud into a fixed TF frame, and appends the points to an internal
+ * accumulated cloud. The accumulated data can then be saved automatically on a timer
+ * or when the node shuts down.
  */
+
+#include <string>
+#include <chrono>
 
 #include <pcl/common/io.h>
 #include <pcl/io/pcd_io.h>
@@ -59,6 +64,13 @@ namespace perception_utils
 class CombinedPointCloudToPCD : public rclcpp::Node
 {
 public:
+  /**
+   * @brief Construct the accumulation and PCD export component.
+   * @param options ROS 2 node options used when loading the component.
+   *
+   * Declares runtime parameters, creates the point cloud subscription, and
+   * optionally starts a save timer when `save_timer_sec` is greater than zero.
+   */
   explicit CombinedPointCloudToPCD(const rclcpp::NodeOptions & options)
   : rclcpp::Node("combined_pointcloud_to_pcd", options),
     binary_(false),
@@ -127,28 +139,55 @@ public:
   }
 
 private:
-  // Parameters
+  /// Prefix used to build the output PCD filename.
   std::string prefix_;
+
+  /// When true, save the PCD file in binary format instead of ASCII.
   bool binary_;
+
+  /// When true together with `binary_`, save using compressed binary PCD output.
   bool compressed_;
+
+  /// Selects accumulation of `PointXYZRGB` data instead of `PointXYZ`.
   bool rgb_;
+
+  /// Tracks whether the current callback successfully resolved a TF transform.
   bool use_transform_;
+
+  /// Save the accumulated cloud in the destructor if no earlier save occurred.
   bool save_on_shutdown_;
+
+  /// Optional TF frame into which every input cloud should be transformed.
   std::string fixed_frame_;
 
+  /// TF2 buffer used to query transforms for incoming clouds.
   tf2_ros::Buffer tf_buffer_;
+
+  /// TF2 listener that fills the buffer with transforms from the ROS graph.
   tf2_ros::TransformListener tf_listener_;
 
+  /// Subscription to the input point cloud stream.
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_;
+
+  /// Optional timer that triggers automatic saving after a configured interval.
   rclcpp::TimerBase::SharedPtr save_timer_;
 
-  // Internal state
+  /// Accumulator used when `rgb_` is false.
   pcl::PointCloud<pcl::PointXYZ> accumulated_cloud_xyz_;
+
+  /// Accumulator used when `rgb_` is true.
   pcl::PointCloud<pcl::PointXYZRGB> accumulated_cloud_xyzrgb_;
+
+  /// Prevents saving the same accumulated cloud more than once.
   bool save_triggered_;
 
   /**
-   * @brief Point cloud callback. Accumulates all incoming messages in an internal cloud.
+   * @brief Consume an input cloud and append it to the internal accumulator.
+   * @param cloud_msg Incoming point cloud message from the `input` topic.
+   *
+   * The callback validates the message, optionally transforms it into
+   * `fixed_frame_`, converts it into the selected PCL point type, and appends
+   * its points to the corresponding accumulated cloud.
    */
   void cloudCb(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg)
   {
@@ -205,6 +244,9 @@ private:
 
   /**
    * @brief Apply a rigid transform (translation + rotation) to an XYZ cloud in-place.
+   * @param cloud_inout Point cloud to transform.
+   * @param translation Translation vector expressed in the target frame.
+   * @param rotation Rotation quaternion expressed in the target frame.
    */
   void transformPointCloud(
     pcl::PointCloud<pcl::PointXYZ> & cloud_inout,
@@ -221,6 +263,9 @@ private:
 
   /**
    * @brief Apply a rigid transform (translation + rotation) to an XYZRGB cloud in-place.
+   * @param cloud_inout Point cloud to transform.
+   * @param translation Translation vector expressed in the target frame.
+   * @param rotation Rotation quaternion expressed in the target frame.
    */
   void transformPointCloud(
     pcl::PointCloud<pcl::PointXYZRGB> & cloud_inout,
@@ -237,6 +282,8 @@ private:
 
   /**
    * @brief Timer-based or event-based function to check if we need to save the cloud.
+   *
+   * If no save has happened yet, this method delegates to `saveAccumulatedCloud()`.
    */
   void checkAndSave()
   {
@@ -247,6 +294,10 @@ private:
 
   /**
    * @brief Writes the accumulated point cloud to disk in a single PCD file.
+   *
+   * The file name includes the configured prefix and the node clock time.
+   * After a successful save attempt, the node shuts down to avoid writing
+   * duplicate files from later callbacks or destructor execution.
    */
   void saveAccumulatedCloud()
   {
@@ -311,7 +362,7 @@ private:
   }
 };
 
-}  // namespace pcl_ros
+}  // namespace perception_utils
 
 // Register as a component
 RCLCPP_COMPONENTS_REGISTER_NODE(perception_utils::CombinedPointCloudToPCD)

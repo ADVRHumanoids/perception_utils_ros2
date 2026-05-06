@@ -1,3 +1,13 @@
+"""!
+@file pcd_to_pointcloud.launch.py
+@author Valerio Passamano
+@brief Launches a PCD playback node that republishes a stored point cloud file.
+
+This launch file declares arguments for the target frame, output cloud topic,
+publish period, and input PCD path, then starts `pcl_ros`'s
+`pcd_to_pointcloud` node to replay the file as `PointCloud2` messages.
+"""
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration

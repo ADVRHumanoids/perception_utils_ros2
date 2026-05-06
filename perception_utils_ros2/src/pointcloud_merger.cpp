@@ -1,5 +1,7 @@
-#include <vector>
 #include <string>
+#include <sstream>
+#include <map>
+#include <vector>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
@@ -13,9 +15,40 @@
 #include <tf2/exceptions.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
-namespace ira_laser_tools{
+/**
+ * @file pointcloud_merger.cpp
+ * @author Extended by Valerio Passamano
+ * @brief ROS 2 component that subscribes to multiple PointCloud2 topics, transforms
+ * each cloud into a common frame, and republishes a merged cloud.
+ *
+ * The node keeps the latest transformed cloud received from each configured input
+ * topic. Every time a new cloud arrives, it updates that topic's cached cloud,
+ * concatenates all currently available clouds, and publishes the result on a single
+ * output topic. This makes it suitable for fusing multiple lidar or depth sensors
+ * into a combined perception stream.
+ */
+
+namespace perception_utils {
+
+/**
+ * @class PointCloudMerger
+ * @brief Merges multiple `sensor_msgs::msg::PointCloud2` streams into one topic.
+ *
+ * The node is configured through a whitespace-separated list of input topics,
+ * a destination TF frame, and an output topic name. Incoming clouds are
+ * transformed into the destination frame with TF2 before being stored and
+ * merged. The node always publishes the latest known combination of all
+ * non-empty cached clouds.
+ */
 class PointCloudMerger : public rclcpp::Node {
 public:
+    /**
+     * @brief Construct the point cloud merger component.
+     * @param options ROS 2 node options used when loading the component.
+     *
+     * Declares parameters, creates the TF listener, subscribes to the configured
+     * input topics, and initializes the merged cloud publisher.
+     */
     PointCloudMerger(const rclcpp::NodeOptions &options = rclcpp::NodeOptions())
         : Node("pointcloud_merger", options) {
         // Declare and get parameters
@@ -44,6 +77,13 @@ public:
     }
 
 private:
+    /**
+     * @brief Parse the `pointcloud_topics` parameter and create subscriptions.
+     *
+     * The parameter is expected to be a whitespace-separated list of topic names.
+     * One subscription and one cached `pcl::PCLPointCloud2` entry are created for
+     * each parsed topic.
+     */
     void parse_pointcloud_topics() {
         std::istringstream iss(pointcloud_topics_);
         std::vector<std::string> tmp_topics;
@@ -70,6 +110,15 @@ private:
         }
     }
 
+    /**
+     * @brief Process a new cloud from one of the configured input topics.
+     * @param msg Incoming point cloud message.
+     * @param topic Name of the subscription topic that produced the message.
+     *
+     * The callback transforms the cloud into the configured destination frame,
+     * converts it into PCL's serialized cloud format, stores it as the latest
+     * cloud for that topic, and triggers a merge/publish cycle.
+     */
     void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg, const std::string &topic) {
         pcl::PCLPointCloud2 pcl_cloud;
         //pcl_conversions::toPCL(*msg, pcl_cloud);
@@ -97,6 +146,12 @@ private:
         }
     }
 
+    /**
+     * @brief Merge all cached clouds and publish the combined result.
+     *
+     * Empty cache entries are ignored. The published cloud contains the
+     * concatenation of all transformed clouds that have been received at least once.
+     */
     void merge_and_publish() {
         pcl::PCLPointCloud2 merged_cloud;
 
@@ -122,20 +177,30 @@ private:
         }
     }
 
-    // Parameters
+    /// Destination TF frame used for all merged point clouds.
     std::string destination_frame_;
+
+    /// Output topic where the merged `PointCloud2` message is published.
     std::string destination_topic_;
+
+    /// Whitespace-separated list of subscribed input point cloud topics.
     std::string pointcloud_topics_;
 
-    // Data structures
+    /// Latest transformed cloud cached for each input topic.
     std::map<std::string, pcl::PCLPointCloud2> clouds_;
+
+    /// Subscriptions that keep each configured input topic active.
     std::vector<rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr> subscribers_;
+
+    /// Publisher for the merged point cloud output.
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_publisher_;
 
-    // TF2
+    /// TF2 buffer used to look up transforms between source and destination frames.
     std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+
+    /// TF2 listener that populates the transform buffer from the ROS graph.
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 };
-}
+}  // namespace perception_utils
 
-RCLCPP_COMPONENTS_REGISTER_NODE(ira_laser_tools::PointCloudMerger)
+RCLCPP_COMPONENTS_REGISTER_NODE(perception_utils::PointCloudMerger)

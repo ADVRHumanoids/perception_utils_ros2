@@ -1,9 +1,19 @@
+"""!
+@file laserscan_multi_merger.launch.py
+@author Valerio Passamano
+@brief Launches a multi-laserscan merger configuration for two lidar scan topics.
+
+This launch file starts the `laserscan_multi_merger` node from
+`ira_laser_tools`, configures the front and back lidar scan topics as inputs,
+and publishes a fused scan aligned to the `VLP16_lidar_back` frame.
+"""
+
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
 def generate_launch_description():
     laserscan_multi_merger = Node(
-        package="ira_laser_tools",
+        package="perception_utils_ros2",
         executable="laserscan_multi_merger",
         name="laserscan_multi_merger",
         output="screen",
