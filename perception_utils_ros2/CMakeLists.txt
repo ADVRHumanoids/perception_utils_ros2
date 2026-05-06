@@ -115,9 +115,7 @@ ament_target_dependencies(laserscan_multi_merger ${DEPENDENCIES})
 # =====================================================
 install(
   TARGETS combined_pointcloud_to_pcd_lib pointcloud_merger_lib laserscan_multi_merger
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION lib
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
