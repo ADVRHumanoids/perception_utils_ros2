@@ -11,6 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -28,6 +29,7 @@ set(DEPENDENCIES
   rclcpp_action
   rclcpp_components
   rclcpp_lifecycle
+  rcl_interfaces
   std_msgs
   geometry_msgs
   sensor_msgs
@@ -89,13 +91,38 @@ rclcpp_components_register_node(pointcloud_merger_lib
 ament_target_dependencies(pointcloud_merger_lib ${DEPENDENCIES})
 
 # =====================================================
+# LaserscanMerger Executable
+# =====================================================
+add_executable(laserscan_multi_merger
+  src/laserscan_multi_merger.cpp
+)
+
+target_include_directories(laserscan_multi_merger PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${PCL_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+)
+
+target_link_libraries(laserscan_multi_merger
+  ${PCL_LIBRARIES}
+)
+
+ament_target_dependencies(laserscan_multi_merger ${DEPENDENCIES})
+
+# =====================================================
 # Install Targets and Directories
 # =====================================================
 install(
-  TARGETS combined_pointcloud_to_pcd_lib pointcloud_merger_lib
+  TARGETS combined_pointcloud_to_pcd_lib pointcloud_merger_lib laserscan_multi_merger
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib
+)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
 )
 
 # Install launch files
