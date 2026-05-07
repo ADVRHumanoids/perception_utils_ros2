@@ -33,7 +33,7 @@
  */
 
 /**
- * @file combined_pointcloud_to_pcd.cpp
+ * @file pointcloud_to_pcd.cpp
  * @author Extended by Valerio Passamano
  * @brief ROS 2 component that accumulates point clouds and saves them as one PCD file.
  *
@@ -43,8 +43,11 @@
  * or when the node shuts down.
  */
 
-#include <string>
 #include <chrono>
+#include <filesystem>
+#include <iomanip>
+#include <sstream>
+#include <string>
 
 #include <pcl/common/io.h>
 #include <pcl/io/pcd_io.h>
@@ -61,7 +64,7 @@
 namespace perception_utils
 {
 
-class CombinedPointCloudToPCD : public rclcpp::Node
+class PointCloudToPCD : public rclcpp::Node
 {
 public:
   /**
@@ -71,8 +74,8 @@ public:
    * Declares runtime parameters, creates the point cloud subscription, and
    * optionally starts a save timer when `save_timer_sec` is greater than zero.
    */
-  explicit CombinedPointCloudToPCD(const rclcpp::NodeOptions & options)
-  : rclcpp::Node("combined_pointcloud_to_pcd", options),
+  explicit PointCloudToPCD(const rclcpp::NodeOptions & options)
+  : rclcpp::Node("pointcloud_to_pcd", options),
     binary_(false),
     compressed_(false),
     rgb_(false),
@@ -84,7 +87,7 @@ public:
     save_triggered_(false)
   {
     // Declare parameters
-    this->declare_parameter<std::string>("prefix", "combined_");
+    this->declare_parameter<std::string>("prefix", "");
     this->declare_parameter<std::string>("fixed_frame", "");
     this->declare_parameter<bool>("binary", false);
     this->declare_parameter<bool>("compressed", false);
@@ -113,23 +116,26 @@ public:
       RCLCPP_INFO(this->get_logger(), "PCD file will not be automatically saved. Will be saved on the shutdown of the node.");
     }
 
-    // Create a subscription with SensorDataQoS
-    auto sensor_qos = rclcpp::SensorDataQoS();
+    // Create a subscription with reliable and transient local QoS to ensure we receive all clouds 
+    // even if the node starts after some messages have been published
+    rclcpp::QoS qos(10);
+    qos.reliable();
+    qos.transient_local();
     sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-      "input", sensor_qos,
-      std::bind(&CombinedPointCloudToPCD::cloudCb, this, std::placeholders::_1));
+      "input", qos,
+      std::bind(&PointCloudToPCD::cloudCb, this, std::placeholders::_1));
 
     // Create a timer if the user wants a periodic check for saving
     if (save_timer_sec > 0.0) {
       save_timer_ = this->create_wall_timer(
         std::chrono::duration<double>(save_timer_sec),
-        std::bind(&CombinedPointCloudToPCD::checkAndSave, this));
+        std::bind(&PointCloudToPCD::checkAndSave, this));
     }
 
-    RCLCPP_INFO(this->get_logger(), "Initialized CombinedPointCloudToPCD node");
+    RCLCPP_INFO(this->get_logger(), "Initialized PointCloudToPCD node");
   }
 
-  ~CombinedPointCloudToPCD() override
+  ~PointCloudToPCD() override
   {
     // Optionally save on node shutdown
     if (!save_triggered_ && save_on_shutdown_) {
@@ -304,58 +310,88 @@ private:
     if (save_triggered_) {
       return;
     }
-    save_triggered_ = true;  // Prevent multiple saves
 
-    // Create a filename
-    std::stringstream ss;
-    ss << prefix_ << "combined_" << this->now().seconds() << ".pcd";
-    std::string filename = ss.str();
+    const auto now = this->now();
+    const auto seconds = now.seconds();
+    const auto whole_seconds = static_cast<int64_t>(seconds);
+    const auto nanoseconds = static_cast<uint32_t>((seconds - static_cast<double>(whole_seconds)) * 1e9);
+
+    // Create missing parent directories for both relative and absolute prefixes.
+    const std::filesystem::path prefix_path(prefix_);
+    const std::filesystem::path parent_dir = prefix_path.parent_path();
+    if (!parent_dir.empty()) {
+      std::error_code ec;
+      std::filesystem::create_directories(parent_dir, ec);
+      if (ec) {
+        RCLCPP_ERROR(
+          this->get_logger(),
+          "Could not create output directory '%s': %s",
+          parent_dir.string().c_str(),
+          ec.message().c_str()
+        );
+        return;
+      }
+    }
+
+    std::ostringstream ss;
+    ss << prefix_ << whole_seconds << "_" << std::setw(9) << std::setfill('0')
+       << nanoseconds << ".pcd";
+    const std::string filename = ss.str();
 
     RCLCPP_INFO(this->get_logger(), "Saving accumulated point cloud to: %s", filename.c_str());
 
     pcl::PCDWriter writer;
 
-    if (rgb_) {
-      if (accumulated_cloud_xyzrgb_.empty()) {
-        RCLCPP_WARN(this->get_logger(), "No points in accumulated XYZRGB cloud to save.");
-      } else {
-        if (binary_) {
-          if (compressed_) {
-            writer.writeBinaryCompressed(filename, accumulated_cloud_xyzrgb_);
-          } else {
-            writer.writeBinary(filename, accumulated_cloud_xyzrgb_);
-          }
+    try {
+      if (rgb_) {
+        if (accumulated_cloud_xyzrgb_.empty()) {
+          RCLCPP_WARN(this->get_logger(), "No points in accumulated XYZRGB cloud to save.");
+          return;
         } else {
-          writer.writeASCII(filename, accumulated_cloud_xyzrgb_, 8);
-        }
-        RCLCPP_INFO(
-          this->get_logger(),
-          "Saved %zu XYZRGB points to %s",
-          accumulated_cloud_xyzrgb_.size(),
-          filename.c_str()
-        );
-      }
-    } else {
-      if (accumulated_cloud_xyz_.empty()) {
-        RCLCPP_WARN(this->get_logger(), "No points in accumulated XYZ cloud to save.");
-      } else {
-        if (binary_) {
-          if (compressed_) {
-            writer.writeBinaryCompressed(filename, accumulated_cloud_xyz_);
+          if (binary_) {
+            if (compressed_) {
+              writer.writeBinaryCompressed(filename, accumulated_cloud_xyzrgb_);
+            } else {
+              writer.writeBinary(filename, accumulated_cloud_xyzrgb_);
+            }
           } else {
-            writer.writeBinary(filename, accumulated_cloud_xyz_);
+            writer.writeASCII(filename, accumulated_cloud_xyzrgb_, 8);
           }
-        } else {
-          writer.writeASCII(filename, accumulated_cloud_xyz_, 8);
+          RCLCPP_INFO(
+            this->get_logger(),
+            "Saved %zu XYZRGB points to %s",
+            accumulated_cloud_xyzrgb_.size(),
+            filename.c_str()
+          );
         }
-        RCLCPP_INFO(
-          this->get_logger(),
-          "Saved %zu XYZ points to %s",
-          accumulated_cloud_xyz_.size(),
-          filename.c_str()
-        );
+      } else {
+        if (accumulated_cloud_xyz_.empty()) {
+          RCLCPP_WARN(this->get_logger(), "No points in accumulated XYZ cloud to save.");
+          return;
+        } else {
+          if (binary_) {
+            if (compressed_) {
+              writer.writeBinaryCompressed(filename, accumulated_cloud_xyz_);
+            } else {
+              writer.writeBinary(filename, accumulated_cloud_xyz_);
+            }
+          } else {
+            writer.writeASCII(filename, accumulated_cloud_xyz_, 8);
+          }
+          RCLCPP_INFO(
+            this->get_logger(),
+            "Saved %zu XYZ points to %s",
+            accumulated_cloud_xyz_.size(),
+            filename.c_str()
+          );
+        }
       }
+    } catch (const pcl::IOException & ex) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to save PCD file '%s': %s", filename.c_str(), ex.what());
+      return;
     }
+
+    save_triggered_ = true;  // Prevent multiple saves after a successful write.
     // Shut down the node after saving the cloud.
     RCLCPP_INFO(this->get_logger(), "Shutting down the node.");
     rclcpp::shutdown();
@@ -365,4 +401,4 @@ private:
 }  // namespace perception_utils
 
 // Register as a component
-RCLCPP_COMPONENTS_REGISTER_NODE(perception_utils::CombinedPointCloudToPCD)
+RCLCPP_COMPONENTS_REGISTER_NODE(perception_utils::PointCloudToPCD)

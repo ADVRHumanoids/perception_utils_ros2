@@ -1,36 +1,27 @@
-"""!
-@file pointcloud_to_pcd_launch.py
+"""
+@file pointcloud_to_pcd.launch.py
 @author Valerio Passamano
 @brief Launches the point cloud accumulation node that exports a merged PCD file.
 
-This launch file starts `combined_pointcloud_to_pcd_node`, provides its PCD
+This launch file starts `pointcloud_to_pcd_node`, provides its PCD
 output prefix and save options, and remaps the node's `input` subscription to
 the `/cloud_map` topic so an accumulated cloud can be written on shutdown.
 """
 
-import os
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    # Resolve the package's share directory
-    package_share_dir = get_package_share_directory("concert_mapping")
-    # Full path to the PCD file
-    pcd_file_path = os.path.join(package_share_dir,
-                                "pointclouds",
-                                "pointclouds_")
-
     return LaunchDescription([
         DeclareLaunchArgument(
             "pcd_file",
-            default_value=pcd_file_path  # Use the constructed path
+            default_value="maps/pointclouds_"
         ),
         Node(
             package='perception_utils_ros2',  # Replace with the actual package name containing pointcloud_to_pcd
-            executable='combined_pointcloud_to_pcd_node',  # Name of the executable
+            executable='pointcloud_to_pcd_node',  # Name of the executable
             name='pointcloud_to_pcd',
             parameters=[{
                 'prefix': LaunchConfiguration("pcd_file"),        # Set the PCD file name prefix

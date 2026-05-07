@@ -1,6 +1,6 @@
 # perception_utils_ros2
 
-`perception_utils_ros2` provides ROS 2 components for combining multiple point cloud streams and saving the merged result to a PCD file.
+`perception_utils_ros2` provides ROS 2 components and executables for combining multiple point cloud streams, saving the merged result to a PCD file, and replaying saved PCD files back into ROS 2.
 
 ## Launch Files
 
@@ -64,16 +64,20 @@ Role in the package:
 - Declares launch arguments for the PCD file path, TF frame, output topic, and publication period.
 - Publishes recorded point cloud data back into ROS 2 for testing, replay, or visualization.
 - Supports workflows where saved point cloud maps must be republished.
+- Publishes on `/cloud_pcd` by default.
+- The current default `pcd_file` still points to `concert_mapping`, so in practice you should pass an explicit `pcd_file:=...` argument.
 
-### `launch/pointcloud_to_pcd_launch.py`
+### `launch/pointcloud_to_pcd.launch.py`
 
-Launches the package's `combined_pointcloud_to_pcd_node` so an incoming point cloud stream can be accumulated and exported as a `.pcd` file.
+Launches the package's `pointcloud_to_pcd_node` so an incoming point cloud stream can be accumulated and exported as a `.pcd` file.
 
 Role in the package:
 
-- Starts the PCD writer component with save-related parameters.
+- Starts the generated standalone executable for the `PointCloudToPCD` component.
 - Remaps the input subscription to `/cloud_map`.
 - Supports map capture or final cloud export from a merged point cloud stream.
+- Uses `maps/pointclouds_` as the default output prefix, relative to the process working directory.
+- Creates missing parent directories for the output path at runtime.
 
 ---
 
@@ -99,13 +103,13 @@ Typical use:
 - Fuse multiple lidars or depth cameras into a single perception topic.
 - Standardize all incoming clouds into one robot-centric frame before downstream processing.
 
-### `src/combined_pointcloud_to_pcd.cpp`
+### `src/pointcloud_to_pcd.cpp`
 
-This file defines the `perception_utils::CombinedPointCloudToPCD` component. Its responsibility is to accumulate a stream of point clouds over time and write the full accumulated cloud to a single `.pcd` file.
+This file defines the `perception_utils::PointCloudToPCD` component. Its responsibility is to accumulate a stream of point clouds over time and write the full accumulated cloud to a single `.pcd` file.
 
 How it works:
 
-- The node subscribes to the `input` topic using `SensorDataQoS`.
+- The node subscribes to the `input` topic using a reliable, transient-local QoS so it can receive latched map topics such as `/cloud_map` from RTAB-Map even if it starts after the map was published.
 - It can optionally transform each incoming cloud into a fixed TF frame before accumulation.
 - It supports both `PointXYZ` and `PointXYZRGB` accumulation, selected with the `rgb` parameter.
 - It stores all received points in memory until a save is triggered.
@@ -113,6 +117,9 @@ How it works:
   - when a wall timer expires (`save_timer_sec > 0`), or
   - when the node shuts down and `save_on_shutdown` is enabled.
 - The output file format can be ASCII, binary, or binary compressed, depending on parameters.
+- The generated file name is `prefix + "combined_<sec>_<nanosec>.pcd"`.
+- Parent directories are created automatically before writing.
+- Save failures are logged as runtime errors instead of aborting the process.
 
 Main parameters:
 
@@ -128,6 +135,7 @@ Typical use:
 
 - Record a fused cloud from `pointcloud_merger` into a single PCD snapshot.
 - Build a static scene capture from a moving sensor stream.
+- Record an RTAB-Map `/cloud_map` topic after localization or mapping has already produced the latched map sample.
 
 ### `src/laserscan_multi_merger.cpp`
 
@@ -153,7 +161,7 @@ Typical use:
 These source files support three related perception workflows:
 
 1. `pointcloud_merger.cpp` combines several live point cloud topics into one unified point cloud topic.
-2. `combined_pointcloud_to_pcd.cpp` subscribes to a point cloud topic and writes the accumulated result to disk.
+2. `pointcloud_to_pcd.cpp` subscribes to a point cloud topic and writes the accumulated result to disk.
 3. `laserscan_multi_merger.cpp` combines several laser scan topics by projecting them into clouds, fusing them, and regenerating a single scan output.
 
 This package therefore supports both point-cloud fusion and laser-scan fusion, with optional export of the fused cloud as a PCD file.

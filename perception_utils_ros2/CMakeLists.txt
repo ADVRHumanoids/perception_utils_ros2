@@ -43,28 +43,28 @@ set(DEPENDENCIES
 )
 
 # =====================================================
-# CombinedPointCloudToPCD Component
+# PointCloudToPCD Component
 # =====================================================
-add_library(combined_pointcloud_to_pcd_lib SHARED
-  src/combined_pointcloud_to_pcd.cpp
+add_library(pointcloud_to_pcd_lib SHARED
+  src/pointcloud_to_pcd.cpp
 )
 
 # Include directories and link libraries
-target_include_directories(combined_pointcloud_to_pcd_lib PUBLIC
+target_include_directories(pointcloud_to_pcd_lib PUBLIC
   ${PCL_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
 )
-target_link_libraries(combined_pointcloud_to_pcd_lib
+target_link_libraries(pointcloud_to_pcd_lib
   ${PCL_LIBRARIES}
 )
 
 # Register the component
-rclcpp_components_register_node(combined_pointcloud_to_pcd_lib
-  PLUGIN "perception_utils::CombinedPointCloudToPCD"
-  EXECUTABLE combined_pointcloud_to_pcd_node
+rclcpp_components_register_node(pointcloud_to_pcd_lib
+  PLUGIN "perception_utils::PointCloudToPCD"
+  EXECUTABLE pointcloud_to_pcd_node
 )
 
-ament_target_dependencies(combined_pointcloud_to_pcd_lib ${DEPENDENCIES})
+ament_target_dependencies(pointcloud_to_pcd_lib ${DEPENDENCIES})
 
 # =====================================================
 # PointCloudMerger Component
@@ -114,8 +114,20 @@ ament_target_dependencies(laserscan_multi_merger ${DEPENDENCIES})
 # Install Targets and Directories
 # =====================================================
 install(
-  TARGETS combined_pointcloud_to_pcd_lib pointcloud_merger_lib laserscan_multi_merger
-  DESTINATION lib/${PROJECT_NAME}
+  TARGETS
+    pointcloud_to_pcd_lib
+    pointcloud_merger_lib
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+install(
+  TARGETS
+    pointcloud_to_pcd_node
+    pointcloud_merger
+    laserscan_multi_merger
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
