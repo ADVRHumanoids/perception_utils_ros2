@@ -80,7 +80,7 @@ public:
   {
     // Maximum number of outgoing messages to be queued for delivery to subscribers = 1
 
-    cloud_topic_ = "cloud_pcd";
+    cloud_topic_ = this->declare_parameter<std::string>("cloud_topic", "cloud_pcd");
     tf_frame_ = this->declare_parameter("tf_frame", tf_frame_);
     period_ms_ = this->declare_parameter("publishing_period_ms", 3000);
     file_name_ = this->declare_parameter<std::string>("file_name");
