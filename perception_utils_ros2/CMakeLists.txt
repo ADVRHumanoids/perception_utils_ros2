@@ -66,6 +66,31 @@ rclcpp_components_register_node(pointcloud_to_pcd_lib
 
 ament_target_dependencies(pointcloud_to_pcd_lib ${DEPENDENCIES})
 
+
+# =====================================================
+# PCDToPointcloud Component
+# =====================================================
+add_library(pcd_to_pointcloud_lib SHARED
+  src/pcd_to_pointcloud.cpp
+)
+
+# Include directories and link libraries
+target_include_directories(pcd_to_pointcloud_lib PUBLIC
+  ${PCL_INCLUDE_DIRS}
+)
+target_link_libraries(pcd_to_pointcloud_lib
+  ${PCL_LIBRARIES}
+)
+
+# Register the component
+rclcpp_components_register_node(pcd_to_pointcloud_lib
+  PLUGIN "perception_utils::PCDToPointCloud"
+  EXECUTABLE pcd_to_pointcloud_node
+)
+
+ament_target_dependencies(pcd_to_pointcloud_lib ${DEPENDENCIES})
+
+
 # =====================================================
 # PointCloudMerger Component
 # =====================================================

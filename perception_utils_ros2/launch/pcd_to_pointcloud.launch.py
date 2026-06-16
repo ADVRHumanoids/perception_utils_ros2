@@ -46,15 +46,16 @@ def generate_launch_description():
         
         # Node configuration
         Node(
-            package="pcl_ros",  # Replace with your package name
-            executable="pcd_to_pointcloud",  # Replace with your node executable name
+            package="perception_utils_ros2",  # Replace with your package name
+            executable="pcd_to_pointcloud_node",  # Replace with your node executable name
             name="pcd_publisher",
             parameters=[
                 {
                     "file_name": LaunchConfiguration("pcd_file"),
                     "tf_frame": LaunchConfiguration("base_link_frame"),
                     "cloud_topic": LaunchConfiguration("cloud_topic"),
-                    "publishing_period_ms": LaunchConfiguration("publishing_period_ms")
+                    "publishing_period_ms": LaunchConfiguration("publishing_period_ms"),
+                    "downsampling_resolution": 0.1  # Default downsampling resolution, 0.0 means no downsampling
                 }
             ]
         )
