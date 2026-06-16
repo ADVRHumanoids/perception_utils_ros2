@@ -69,6 +69,7 @@ public:
   sensor_msgs::msg::PointCloud2 cloud_;
 
   std::string file_name_, cloud_topic_;
+  float downsampling_resolution_; // Resolution in [m] for downsampling the point cloud. A value of 0 means no downsampling.
   size_t period_ms_;
 
   std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>> pub_;
@@ -84,11 +85,11 @@ public:
     tf_frame_ = this->declare_parameter("tf_frame", tf_frame_);
     period_ms_ = this->declare_parameter("publishing_period_ms", 3000);
     file_name_ = this->declare_parameter<std::string>("file_name");
-    float downsampling_resolution_ = this->declare_parameter<float>("downsampling_resolution", 1.0);
+    downsampling_resolution_ = this->declare_parameter<float>("downsampling_resolution", 0.0);
 
-    if(downsampling_resolution_ <= 0.0 || downsampling_resolution_ > 1.0) {
-      RCLCPP_WARN(this->get_logger(), "Invalid downsampling ratio %f. It should be in the range (0.0, 1.0]. Defaulting to 1.0 (no downsampling).", downsampling_resolution_);
-      downsampling_resolution_ = 1.0;
+    if(downsampling_resolution_ < 0.0) {
+      RCLCPP_WARN(this->get_logger(), "Downsampling resolution cannot be negative. Setting it to 0 (no downsampling).");
+      downsampling_resolution_ = 0.0;
     }
 
     if (file_name_ == "" || pcl::io::loadPCDFile(file_name_, cloud_) == -1) {
@@ -98,7 +99,7 @@ public:
     cloud_.header.frame_id = tf_frame_;
 
     // Apply downsampling
-    if (downsampling_resolution_ < 1.0) {
+    if (downsampling_resolution_ > 0.0) {
       pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
       pcl::fromROSMsg(cloud_, *cloud);
 
@@ -108,7 +109,12 @@ public:
       pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
       sor.filter(*cloud_filtered);
 
+      int nr_points_before = cloud->width * cloud->height;
+      int nr_points_after = cloud_filtered->width * cloud_filtered->height;
       pcl::toROSMsg(*cloud_filtered, cloud_);
+      
+      RCLCPP_INFO(this->get_logger(), "Downsampled point cloud from %zu to %zu points using a leaf size of %.2f m.",
+        nr_points_before, nr_points_after, downsampling_resolution_);
     }
     int nr_points = cloud_.width * cloud_.height;
 
