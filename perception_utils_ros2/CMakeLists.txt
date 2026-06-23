@@ -12,6 +12,7 @@ find_package(rclcpp_action REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(rcl_interfaces REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -22,6 +23,10 @@ find_package(pcl_ros REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(PCL REQUIRED COMPONENTS io common filters)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/SaveMap.srv"
+)
 
 # Dependencies list (to avoid repeating them)
 set(DEPENDENCIES
@@ -65,6 +70,8 @@ rclcpp_components_register_node(pointcloud_to_pcd_lib
 )
 
 ament_target_dependencies(pointcloud_to_pcd_lib ${DEPENDENCIES})
+rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
+target_link_libraries(pointcloud_to_pcd_lib "${cpp_typesupport_target}")
 
 
 # =====================================================
@@ -162,11 +169,18 @@ install(
   DESTINATION include
 )
 
+install(
+  DIRECTORY srv/
+  DESTINATION share/${PROJECT_NAME}/srv
+)
+
 # Install launch files
 install(
   DIRECTORY launch/
   DESTINATION share/${PROJECT_NAME}/launch
 )
+
+ament_export_dependencies(rosidl_default_runtime)
 
 # =====================================================
 # Testing Configuration

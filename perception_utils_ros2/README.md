@@ -105,7 +105,8 @@ Typical use:
 
 ### `src/pointcloud_to_pcd.cpp`
 
-This file defines the `perception_utils::PointCloudToPCD` component. Its responsibility is to accumulate a stream of point clouds over time and write the full accumulated cloud to a single `.pcd` file.
+This file defines the `perception_utils::PointCloudToPCD` component. Its responsibility is to accumulate a stream of point clouds over time and write the full accumulated cloud to a single `.pcd` file.<br>
+Features the service `/pointcloud_to_pcd/save_map` that enables map saving before node termination with custom filename.
 
 How it works:
 
@@ -136,6 +137,7 @@ Typical use:
 - Record a fused cloud from `pointcloud_merger` into a single PCD snapshot.
 - Build a static scene capture from a moving sensor stream.
 - Record an RTAB-Map `/cloud_map` topic after localization or mapping has already produced the latched map sample.
+- Call `ros2 service call /pointcloud_to_pcd/save_map perception_utils_ros2/srv/SaveMap "{filename: 'my_map_snapshot'}"` to save the map before the natural termination of the node (when map saves automatically).
 
 ### `src/laserscan_multi_merger.cpp`
 
