@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.16)
 project(perception_utils_ros2)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -23,6 +23,9 @@ find_package(pcl_ros REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(PCL REQUIRED COMPONENTS io common filters)
+find_package(cv_bridge REQUIRED)
+find_package(message_filters REQUIRED)
+find_package(OpenCV REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SaveMap.srv"
@@ -142,6 +145,30 @@ target_link_libraries(laserscan_multi_merger
 
 ament_target_dependencies(laserscan_multi_merger ${DEPENDENCIES})
 
+
+# =====================================================
+# RealsenseImageCropperNode Executable
+# =====================================================
+add_library(realsense_image_cropper_core SHARED
+  src/realsense_image_cropper/crop_ops.cpp
+  src/realsense_image_cropper/image_cropper_node.cpp
+)
+
+target_include_directories(realsense_image_cropper_core PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(realsense_image_cropper_core ${OpenCV_LIBS})
+
+ament_target_dependencies(realsense_image_cropper_core
+  rclcpp rclcpp_components sensor_msgs cv_bridge message_filters
+)
+
+rclcpp_components_register_node(realsense_image_cropper_core
+  PLUGIN "realsense_image_cropper::ImageCropperNode"
+  EXECUTABLE realsense_image_cropper_node)
+
 # =====================================================
 # Install Targets and Directories
 # =====================================================
@@ -161,6 +188,7 @@ install(
     pcd_to_pointcloud_node
     pointcloud_merger
     laserscan_multi_merger
+    realsense_image_cropper_core
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -174,11 +202,8 @@ install(
   DESTINATION share/${PROJECT_NAME}/srv
 )
 
-# Install launch files
-install(
-  DIRECTORY launch/
-  DESTINATION share/${PROJECT_NAME}/launch
-)
+# Install launch and config files
+install(DIRECTORY config launch DESTINATION share/${PROJECT_NAME})
 
 ament_export_dependencies(rosidl_default_runtime)
 

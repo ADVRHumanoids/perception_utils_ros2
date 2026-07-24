@@ -1,0 +1,24 @@
+/realsense_image_cropper:
+  ros__parameters:
+    # --- input topics (RealSense aligned depth+color layout) ---------------
+    input:
+      color_topic: "/camera/camera/color/image_raw"
+      depth_topic: "/camera/camera/aligned_depth_to_color/image_raw"
+      camera_info_topic: "/camera/camera/color/camera_info"
+
+    # --- output topics (node-relative defaults) -----------------------------
+    output:
+      color_topic: "~/cropped/color"
+      depth_topic: "~/cropped/depth"
+      camera_info_topic: "~/cropped/camera_info"
+
+    # --- crop window (pixels) -----------------------------------------------
+    crop:
+      width: 256      # requested ROI width  (px); capped to the image size
+      height: 256     # requested ROI height (px); capped to the image size
+      offset_x: 0     # signed px offset of the ROI center from the image center (+x = right)
+      offset_y: 0     # signed px offset of the ROI center from the image center (+y = down)
+
+    sync:
+      queue_size: 10  # ExactTime synchronizer queue
+    use_sensor_qos: true
