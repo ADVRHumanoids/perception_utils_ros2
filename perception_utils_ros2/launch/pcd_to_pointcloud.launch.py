@@ -43,6 +43,11 @@ def generate_launch_description():
                 "pointclouds_combined.pcd"
             )
         ),
+        DeclareLaunchArgument(
+            "leaf",
+            default_value="0.1",
+            description="Downsampling leaf size"
+        ),
         
         # Node configuration
         Node(
@@ -55,7 +60,7 @@ def generate_launch_description():
                     "tf_frame": LaunchConfiguration("base_link_frame"),
                     "cloud_topic": LaunchConfiguration("cloud_topic"),
                     "publishing_period_ms": LaunchConfiguration("publishing_period_ms"),
-                    "downsampling_resolution": 0.1  # Default downsampling resolution, 0.0 means no downsampling
+                    "downsampling_resolution": LaunchConfiguration("leaf")  # Default downsampling resolution, 0.0 means no downsampling
                 }
             ]
         )

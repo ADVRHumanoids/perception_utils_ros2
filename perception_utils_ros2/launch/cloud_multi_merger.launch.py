@@ -19,9 +19,9 @@ def generate_launch_description():
         name="pointcloud_merger",
         output="screen",
         parameters=[
-            {"destination_frame": "VLP16_lidar_back"},
+            {"destination_frame": "base_link"},
             {"cloud_destination_topic": "/merged_cloud"},
-            {"pointcloud_topics": "/VLP16_lidar_back/points /VLP16_lidar_front/points"},
+            {"pointcloud_topics": "/VLP16_lidar_back/velodyne_points /VLP16_lidar_front/velodyne_points"},
         ]
     )
 
